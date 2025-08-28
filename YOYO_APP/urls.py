@@ -17,5 +17,9 @@ urlpatterns = [
    path('Search/',Search_yoyo,name='Search_yoyo'),
    path('Upgrad/',Upgrad_yoyo,name='Upgrad_yoyo'),
    path('Writing_editor/',Writing_editor_yoyo,name='Writing_editor_yoyo'),
-   path('Explore_Gem',Explore_Gem_yoyo,name='Explore_Gem_yoyo'),
+   path('Explore_Gem/',Explore_Gem_yoyo,name='Explore_Gem_yoyo'),
+   path('logout/',logout_yoyo,name='logout_yoyo'),
+   path("chat/new/", new_chat, name="new_chat"),
+    path("chat/<int:chat_id>/", chat_detail, name="chat_detail"),
+   
 ]

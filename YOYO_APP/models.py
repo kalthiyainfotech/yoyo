@@ -9,15 +9,20 @@ class UserData(models.Model):
     def __str__(self):
         return self.name
 
-class ChatMessages(models.Model):
-    MESSAGE_TYPES = (
-        ('sent', 'Sent'),
-        ('received', 'Received'),
-    )
-    user = models.ForeignKey(UserData,on_delete=models.CASCADE,related_name='messages')
-    message_type = models.CharField(max_length=100,choices=MESSAGE_TYPES)
-    content = models.TextField()
-       
+class Chat(models.Model):
+    user = models.ForeignKey(UserData, on_delete=models.CASCADE, related_name="chats")
+    title = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
-        return f"{self.user.name} - {self.message_type} - {self.content[:50]}"
+        return f"{self.title} ({self.user.name})"
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="messages")
+    sender = models.CharField(max_length=10, choices=[("user", "User"), ("bot", "Bot")])
+    text = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.sender}: {self.text[:20]}"
 

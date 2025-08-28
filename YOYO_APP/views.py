@@ -1,8 +1,8 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect ,get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from .forms import RegisterForm
-from .models import UserData,ChatMessages
+from .models import UserData,Message,Chat
 from django.contrib.auth.hashers import check_password
 import json
 from django.http import JsonResponse
@@ -63,46 +63,47 @@ def home_yoyo(request):
     if not request.session.get("user_id"):
         return redirect("login")
 
-    return render(request, "Yoyo.html")
+    user = get_object_or_404(UserData, id=request.session["user_id"])
+    chats = Chat.objects.filter(user=user).order_by("-created_at")
+
+    return render(request, "Yoyo.html", {
+        "user": user,
+        "chats": chats,
+    })
+    
+def new_chat(request):
+    if not request.session.get("user_id"):
+        return redirect("login")
+
+    user = get_object_or_404(UserData, id=request.session["user_id"])
+    chat = Chat.objects.create(user=user, title="New Chat")
+
+    return redirect("chat_detail", chat_id=chat.id)
 
 
+def chat_detail(request, chat_id):
+    if not request.session.get("user_id"):
+        return redirect("login")
 
-def save_message(request):
-    """ Save chat messages (sent or received) """
+    user = get_object_or_404(UserData, id=request.session["user_id"])
+    chat = get_object_or_404(Chat, id=chat_id, user=user)  # only this user’s chats
+
     if request.method == "POST":
-        data = json.loads(request.body.decode("utf-8"))
+        text = request.POST.get("message")
+        if text:
+            # Save user’s message
+            Message.objects.create(chat=chat, sender="user", text=text)
+            # Dummy bot reply
+            Message.objects.create(chat=chat, sender="bot", text="🤖 YOYO: " + text[::-1])
+        return redirect("chat_detail", chat_id=chat.id)
 
-        user_id = request.session.get("user_id")
-        if not user_id:
-            return JsonResponse({"error": "Not logged in"}, status=403)
+    return render(request, "Yoyo.html", {
+        "user": user,
+        "chats": user.chats.order_by("-created_at"),
+        "current_chat": chat,
+        "messages": chat.messages.all(),
+    })
 
-        try:
-            user = UserData.objects.get(id=user_id)
-        except UserData.DoesNotExist:
-            return JsonResponse({"error": "User not found"}, status=404)
-
-        msg_type = data.get("message_type", "sent")
-        content = data.get("content")
-
-        message = ChatMessages.objects.create(
-            user=user,
-            message_type=msg_type,
-            content=content
-        )
-
-        return JsonResponse({"success": True, "message_id": message.id})
-
-    return JsonResponse({"error": "Invalid request"}, status=400)
-
-
-def get_messages(request):
-    """ Fetch all previous messages for logged-in user """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return JsonResponse({"error": "Not logged in"}, status=403)
-
-    messages = ChatMessages.objects.filter(user_id=user_id).order_by("timestamp").values("message_type", "content", "timestamp")
-    return JsonResponse(list(messages), safe=False)
 
 
 def brain_yoyo(request):
