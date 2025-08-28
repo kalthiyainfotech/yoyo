@@ -4,8 +4,8 @@ from django.contrib.auth.hashers import make_password
 from .forms import RegisterForm
 from .models import UserData,Message,Chat
 from django.contrib.auth.hashers import check_password
-import json
-from django.http import JsonResponse
+import os
+from bardapi import Bard
 
 
 def register_yoyo(request):
@@ -58,8 +58,10 @@ def logout_yoyo(request):
     return redirect("login")  
 
 
+os.environ['_BARD_API_KEY'] = "g.a000zQjK6BR93_A9F8DfZ8yOT_5TyCG7mUNu8llCI-Nri1ZBTk7oZhBWihQBRny7k_5UM5Mg5gACgYKAcgSARUSFQHGX2MiMhnVGsHablU-CEYjkqihcxoVAUF8yKrDSgDa2XQHqa44IS6rT7C-0076"
+
+
 def home_yoyo(request):
-    # If not logged in → redirect to login
     if not request.session.get("user_id"):
         return redirect("login")
 
@@ -70,7 +72,8 @@ def home_yoyo(request):
         "user": user,
         "chats": chats,
     })
-    
+
+
 def new_chat(request):
     if not request.session.get("user_id"):
         return redirect("login")
@@ -86,15 +89,24 @@ def chat_detail(request, chat_id):
         return redirect("login")
 
     user = get_object_or_404(UserData, id=request.session["user_id"])
-    chat = get_object_or_404(Chat, id=chat_id, user=user)  # only this user’s chats
+    chat = get_object_or_404(Chat, id=chat_id, user=user)
 
     if request.method == "POST":
         text = request.POST.get("message")
         if text:
             # Save user’s message
             Message.objects.create(chat=chat, sender="user", text=text)
-            # Dummy bot reply
-            Message.objects.create(chat=chat, sender="bot", text="🤖 YOYO: " + text[::-1])
+
+            # Get AI reply from Bard
+            try:
+                bard = Bard()
+                ai_response = bard.get_answer(text).get("content", "⚠️ No reply from Bard.")
+            except Exception as e:
+                ai_response = f"⚠️ Error: {str(e)}"
+
+            # Save bot’s reply
+            Message.objects.create(chat=chat, sender="bot", text=ai_response)
+
         return redirect("chat_detail", chat_id=chat.id)
 
     return render(request, "Yoyo.html", {
