@@ -20,6 +20,11 @@ urlpatterns = [
    path('Explore_Gem/',Explore_Gem_yoyo,name='Explore_Gem_yoyo'),
    path('logout/',logout_yoyo,name='logout_yoyo'),
    path("chat/new/", new_chat, name="new_chat"),
-    path("chat/<int:chat_id>/", chat_detail, name="chat_detail"),
+   path("chat/", chat_detail, name="chat_detail"),   
+   path("chat/<int:chat_id>/", chat_detail, name="chat_detail"),
+   path("chat/<int:chat_id>/send/", send_message, name="send_message"),
+   path("chat/0/send/", send_message, name="send_message"),  
+
+
    
 ]

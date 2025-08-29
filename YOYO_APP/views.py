@@ -4,12 +4,13 @@ from django.contrib.auth.hashers import make_password
 from .forms import RegisterForm
 from .models import UserData,Message,Chat
 from django.contrib.auth.hashers import check_password
-import os
+import os ,json
 from bardapi import Bard
+from django.http import JsonResponse
+
 
 
 def register_yoyo(request):
-    # If already logged in → go to home
     if request.session.get("user_id"):
         return redirect("home")
 
@@ -17,7 +18,7 @@ def register_yoyo(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.password = make_password(form.cleaned_data["password"])  # hash password
+            user.password = make_password(form.cleaned_data["password"])  
             user.save()
             messages.success(request, "Registration successful! Please login.")
             return redirect("login")
@@ -29,7 +30,6 @@ def register_yoyo(request):
 
 
 def login_yoyo(request):
-    # If already logged in → go to home
     if request.session.get("user_id"):
         return redirect("home")
 
@@ -40,7 +40,6 @@ def login_yoyo(request):
         try:
             user = UserData.objects.get(email=email)
             if check_password(password, user.password):
-                # Set session to log the user in
                 request.session["user_id"] = user.id
                 request.session["user_name"] = user.name
                 messages.success(request, f"Welcome back, {user.name}!")
@@ -75,47 +74,95 @@ def home_yoyo(request):
 
 
 def new_chat(request):
+    """Open a blank chat window but do not save to DB yet"""
     if not request.session.get("user_id"):
         return redirect("login")
 
     user = get_object_or_404(UserData, id=request.session["user_id"])
-    chat = Chat.objects.create(user=user, title="New Chat")
+    chats = Chat.objects.filter(user=user).order_by("-created_at")
 
-    return redirect("chat_detail", chat_id=chat.id)
+    return render(request, "Yoyo.html", {
+        "user": user,
+        "chats": chats,
+        "current_chat": None,
+        "messages": [],
+        "is_new_chat": True,
+    })
 
 
-def chat_detail(request, chat_id):
+def chat_detail(request, chat_id=None):
+    """Handles chat messages (existing or new)"""
     if not request.session.get("user_id"):
         return redirect("login")
 
     user = get_object_or_404(UserData, id=request.session["user_id"])
-    chat = get_object_or_404(Chat, id=chat_id, user=user)
+    chat = None
+    if chat_id:
+        chat = get_object_or_404(Chat, id=chat_id, user=user)
 
     if request.method == "POST":
         text = request.POST.get("message")
         if text:
-            # Save user’s message
+            if not chat:
+                chat = Chat.objects.create(user=user, title="New Chat")
+            if chat.title == "New Chat":
+                snippet = " ".join(text.strip().split()[:6])
+                chat.title = snippet.capitalize()
+                chat.save()
             Message.objects.create(chat=chat, sender="user", text=text)
-
-            # Get AI reply from Bard
             try:
                 bard = Bard()
                 ai_response = bard.get_answer(text).get("content", "⚠️ No reply from Bard.")
             except Exception as e:
-                ai_response = f"⚠️ Error: {str(e)}"
-
-            # Save bot’s reply
+                ai_response = f" Error: {str(e)}"
             Message.objects.create(chat=chat, sender="bot", text=ai_response)
 
-        return redirect("chat_detail", chat_id=chat.id)
-
+            return redirect("chat_detail", chat_id=chat.id)
     return render(request, "Yoyo.html", {
         "user": user,
-        "chats": user.chats.order_by("-created_at"),
+        "chats": Chat.objects.filter(user=user).order_by("-created_at"),
         "current_chat": chat,
-        "messages": chat.messages.all(),
+        "messages": chat.messages.all() if chat else [],
+        "is_new_chat": chat is None,
     })
 
+def send_message(request, chat_id=None):
+    if not request.session.get("user_id"):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request"}, status=400)
+
+    user = get_object_or_404(UserData, id=request.session["user_id"])
+    data = json.loads(request.body)
+    text = data.get("message", "").strip()
+
+    if not text:
+        return JsonResponse({"error": "Empty message"}, status=400)
+
+    chat = None
+    if chat_id and chat_id != 0:
+        chat = get_object_or_404(Chat, id=chat_id, user=user)
+    if not chat:
+        chat = Chat.objects.create(user=user, title="New Chat")
+    if chat.title == "New Chat":
+        snippet = " ".join(text.split()[:6])
+        chat.title = snippet.capitalize()
+        chat.save()
+    Message.objects.create(chat=chat, sender="user", text=text)
+    try:
+        bard = Bard(token=os.environ.get("_BARD_API_KEY"))
+        ai_response = bard.get_answer(text).get("content", " No reply from Bard.")
+    except Exception as e:
+        ai_response = f" Error: {str(e)}"
+    Message.objects.create(chat=chat, sender="bot", text=ai_response)
+
+    return JsonResponse({
+        "chat_id": chat.id,
+        "user_message": text,
+        "bot_reply": ai_response,
+        "chat_title": chat.title,
+    })
 
 
 def brain_yoyo(request):

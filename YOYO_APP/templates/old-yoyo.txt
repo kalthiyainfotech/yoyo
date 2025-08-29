@@ -18,7 +18,9 @@
 </head>
 <body class="bg-gray-900 text-gray-100 h-screen overflow-hidden">
   <div class="flex h-full">
+    <!-- Sidebar -->
     <aside class="w-16 md:w-64 bg-gray-800 flex flex-col transition-all duration-300">
+      <!-- Brand -->
       <div class="p-4 border-b border-gray-700 flex items-center">
         <div class="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center mr-3">
           <span class="font-bold">Y</span>
@@ -26,16 +28,16 @@
         <span class="hidden md:block text-xl font-bold">YOYO</span>
       </div>
 
-      
+      <!-- Actions + Chats -->
       <div class="flex-1 overflow-y-auto py-4">
-       
+        <!-- New Chat -->
         <a href="{% url 'new_chat' %}"
            class="w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-700 transition-colors group">
           <i class="fas fa-plus w-6 text-center"></i>
           <span class="hidden md:block ml-3 group-hover:text-white">New Chat</span>
         </a>
 
-       
+        <!-- Recent Chats -->
         <div class="mt-6 px-4 hidden md:block">
           <h3 class="text-xs uppercase text-gray-500 font-semibold mb-2">Recent Chats</h3>
           <div class="space-y-1">
@@ -56,7 +58,7 @@
         </div>
       </div>
 
-     
+      <!-- User -->
       <div class="p-4 border-t border-gray-700">
         <div class="flex items-center">
           <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center">
@@ -73,10 +75,10 @@
       </div>
     </aside>
 
-    
+    <!-- Main -->
     <main class="flex-1 flex flex-col">
 
-      
+      <!-- Chat Area -->
       <div id="chatArea" class="flex-1 overflow-y-auto p-6 space-y-4">
         {% if current_chat %}
           {% if messages %}
@@ -93,7 +95,7 @@
             <div class="text-center text-gray-500 mt-10">No messages yet</div>
           {% endif %}
         {% else %}
-         
+          <!-- Homepage -->
           <div class="text-center fade-in mt-10">
             <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-600 mb-4">
               <i class="fas fa-robot text-2xl"></i>
@@ -125,6 +127,8 @@
           </div>
         {% endif %}
       </div>
+
+      <!-- Input -->
       {% if current_chat or is_new_chat %}
 <form id="chatForm" class="p-4 border-t border-gray-700">
   {% csrf_token %}
@@ -148,9 +152,9 @@
     </main>
   </div>
 
- 
+  <!-- Small UX helpers -->
   <script>
-    
+    // Auto-scroll to bottom on load (when viewing a chat)
     (function () {
       const chatArea = document.getElementById('chatArea');
       if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
@@ -167,7 +171,7 @@
     const text = messageInput.value.trim();
     if (!text) return;
 
-    
+    // Show user message instantly
     const userBubble = document.createElement("div");
     userBubble.className = "fade-in p-3 rounded-lg max-w-xl bg-indigo-600 text-white ml-auto";
     userBubble.innerHTML = text + `<div class="text-[10px] opacity-70 mt-1">just now</div>`;
@@ -175,13 +179,14 @@
     chatArea.scrollTop = chatArea.scrollHeight;
     messageInput.value = "";
 
-    
+    // Temporary "thinking"
     const botBubble = document.createElement("div");
     botBubble.className = "fade-in p-3 rounded-lg max-w-xl bg-gray-700 text-gray-200";
     botBubble.innerHTML = "YOYO is thinking...";
     chatArea.appendChild(botBubble);
     chatArea.scrollTop = chatArea.scrollHeight;
 
+    // Send to backend
     const response = await fetch("{% if current_chat %}{% url 'send_message' current_chat.id %}{% else %}{% url 'send_message' 0 %}{% endif %}", {
       method: "POST",
       headers: {
@@ -193,8 +198,8 @@
 
     const data = await response.json();
 
- 
-    botBubble.innerHTML = data.bot_reply || " No reply";
+    // Replace with actual response
+    botBubble.innerHTML = data.bot_reply || "⚠️ No reply";
     chatArea.scrollTop = chatArea.scrollHeight;
   });
 </script>
